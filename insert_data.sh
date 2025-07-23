@@ -5,8 +5,7 @@ PSQL="psql -X --username=lavie --dbname=students --no-align --tuples-only -c"
 
 echo $($PSQL "TRUNCATE students, majors_courses, courses, majors")
 
-cat courses_test.csv | while IFS="," read MAJOR COURSE
-
+cat courses.csv | while IFS="," read MAJOR COURSE
 do
   # get major_id
   if [[ $MAJOR != major && -n "$MAJOR" ]]
@@ -61,7 +60,6 @@ do
     then
         echo "Inserted into majors_courses, $MAJOR_ID :  $COURSE"
     fi
-
  fi
 done
 
@@ -70,13 +68,41 @@ cat students_test.csv | while IFS="," read FIRST LAST MAJOR GPA
 do
   if [[ $FIRST != "first_name" ]]
   then
-    # get major_id
+    # Initializza variables
+    MAJOR_ID="NULL"
+    GPA_VALUE="NULL"
 
+    # Handle case where major is NULL
+    if [[ $MAJOR != "null" && -n "$MAJOR" ]]
+    then
+      MAJOR_ID=$($PSQL "SELECT major_id FROM majors WHERE major='$MAJOR'")
+    
     # if not found
+    if [[ -z $MAJOR_ID ]]
+    then
+      # insert major
+      INSERT_MAJOR_RESULT=$($PSQL "INSERT INTO majors(major) VALUES('$MAJOR')")
+      
+      if [[ $INSERT_MAJOR_RESULT == "INSERT 0 1" ]]
+      then
+          echo "Inserted into majors, $MAJOR"
+      fi
+      MAJOR_ID=$($PSQL "SELECT major_id FROM majors WHERE major='$MAJOR'")
+    fi
+  fi
 
-    # set to null
+  # Handle GPA null value
+    if [[ $GPA != "null" && -n "$GPA" ]]
+    then
+      GPA_VALUE=$GPA
+    fi
 
     # insert student
+    INSERT_STUDENT_RESULT=$($PSQL "INSERT INTO students(first_name, last_name, major_id, gpa) VALUES('$FIRST', '$LAST', $MAJOR_ID, $GPA_VALUE)")
 
+    if [[ $INSERT_STUDENT_RESULT == "INSERT 0 1" ]]
+    then
+      echo "Inserted into students, $FIRST $LAST"
+    fi
   fi
 done
